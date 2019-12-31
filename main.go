@@ -2,9 +2,11 @@ package main
 
 import (
 	"database/sql"
+	"encoding/json"
 	"log"
 	"net/http"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/gorilla/mux"
 	"github.com/lib/pq"
 )
@@ -36,19 +38,27 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	db.Close()
 
 	router.HandleFunc("/signup", signup).Methods("POST")
 	router.HandleFunc("/login", login).Methods("POST")
 	router.HandleFunc("/protected", TokenVerifyMiddleware(ProtectedEndpoint)).Methods("GET")
 
 	log.Println("Listening on port 8000...")
-	err := http.ListenAndServe(":8000", router)
+	err = http.ListenAndServe(":8000", router)
 	// application will exit if some error emerged from server start up
 	log.Fatal(err)
 }
 
 func signup(res http.ResponseWriter, req *http.Request) {
-	log.Println("/signup called")
+	var user User
+	var error Error
+	json.NewDecoder(req.Body).Decode(&user)
+	spew.Dump(user)
+
+	if user.Email == "" && user.Password == "" {
+		error.Message = "Email or password are missing"
+	}
 }
 
 func login(res http.ResponseWriter, req *http.Request) {
