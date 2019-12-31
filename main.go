@@ -1,10 +1,12 @@
 package main
 
 import (
+	"database/sql"
 	"log"
 	"net/http"
 
 	"github.com/gorilla/mux"
+	"github.com/lib/pq"
 )
 
 type User struct {
@@ -23,6 +25,17 @@ type Error struct {
 
 func main() {
 	router := mux.NewRouter()
+	var db *sql.DB
+
+	pgUrl, err := pq.ParseURL("postgres://amuodazc:jsXKFS4Fe4gNvlmOQcYVG6SAHFejmp99@balarama.db.elephantsql.com:5432/amuodazc")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	db, err = sql.Open("postgres", pgUrl)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	router.HandleFunc("/signup", signup).Methods("POST")
 	router.HandleFunc("/login", login).Methods("POST")
