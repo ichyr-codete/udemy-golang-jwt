@@ -13,6 +13,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/ichyr-codete/udemy-golang-jwt/driver"
 	"github.com/ichyr-codete/udemy-golang-jwt/models"
+	"github.com/ichyr-codete/udemy-golang-jwt/utils"
 	"github.com/subosito/gotenv"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -39,15 +40,6 @@ func main() {
 	log.Fatal(err)
 }
 
-func respondWithError(res http.ResponseWriter, status int, error models.Error) {
-	res.WriteHeader(status)
-	json.NewEncoder(res).Encode(error)
-}
-
-func respondWithJSON(res http.ResponseWriter, data interface{}) {
-	json.NewEncoder(res).Encode(data)
-}
-
 func signup(res http.ResponseWriter, req *http.Request) {
 	var user models.User
 	var error models.Error
@@ -55,13 +47,13 @@ func signup(res http.ResponseWriter, req *http.Request) {
 
 	if user.Email == "" {
 		error.Message = "Email is missing"
-		respondWithError(res, http.StatusBadRequest, error)
+		utils.RespondWithError(res, http.StatusBadRequest, error)
 		return
 	}
 
 	if user.Password == "" {
 		error.Message = "Password is missing"
-		respondWithError(res, http.StatusBadRequest, error)
+		utils.RespondWithError(res, http.StatusBadRequest, error)
 		return
 	}
 
@@ -76,7 +68,7 @@ func signup(res http.ResponseWriter, req *http.Request) {
 	err = db.QueryRow(insertStatement, user.Email, user.Password).Scan(&user.ID)
 	if err != nil {
 		error.Message = err.Error()
-		respondWithError(res, http.StatusInternalServerError, error)
+		utils.RespondWithError(res, http.StatusInternalServerError, error)
 		return
 	}
 
@@ -85,7 +77,7 @@ func signup(res http.ResponseWriter, req *http.Request) {
 	user.Password = ""
 
 	res.Header().Set("Content-Type", "application/json")
-	respondWithJSON(res, user)
+	utils.RespondWithJSON(res, user)
 }
 
 func GenerateToken(user models.User) (string, error) {
@@ -115,13 +107,13 @@ func login(res http.ResponseWriter, req *http.Request) {
 
 	if user.Email == "" {
 		error.Message = "Email is missing"
-		respondWithError(res, http.StatusBadRequest, error)
+		utils.RespondWithError(res, http.StatusBadRequest, error)
 		return
 	}
 
 	if user.Password == "" {
 		error.Message = "Password is missing"
-		respondWithError(res, http.StatusBadRequest, error)
+		utils.RespondWithError(res, http.StatusBadRequest, error)
 		return
 	}
 
@@ -133,7 +125,7 @@ func login(res http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		if err == sql.ErrNoRows {
 			error.Message = "User does not exist"
-			respondWithError(res, http.StatusBadRequest, error)
+			utils.RespondWithError(res, http.StatusBadRequest, error)
 			return
 		} else {
 			log.Fatal(err)
@@ -144,7 +136,7 @@ func login(res http.ResponseWriter, req *http.Request) {
 	err = bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password))
 	if err != nil {
 		error.Message = "Password is not valid"
-		respondWithError(res, http.StatusBadRequest, error)
+		utils.RespondWithError(res, http.StatusBadRequest, error)
 		return
 	}
 
@@ -155,7 +147,7 @@ func login(res http.ResponseWriter, req *http.Request) {
 
 	res.WriteHeader(http.StatusOK)
 	jwt.Token = token
-	respondWithJSON(res, jwt)
+	utils.RespondWithJSON(res, jwt)
 
 }
 
@@ -185,7 +177,7 @@ func TokenVerifyMiddleware(next http.HandlerFunc) http.HandlerFunc {
 
 			if err != nil {
 				errorObject.Message = err.Error()
-				respondWithError(res, http.StatusBadRequest, errorObject)
+				utils.RespondWithError(res, http.StatusBadRequest, errorObject)
 				return
 			}
 
@@ -193,13 +185,13 @@ func TokenVerifyMiddleware(next http.HandlerFunc) http.HandlerFunc {
 				next.ServeHTTP(res, req)
 			} else {
 				errorObject.Message = err.Error()
-				respondWithError(res, http.StatusUnauthorized, errorObject)
+				utils.RespondWithError(res, http.StatusUnauthorized, errorObject)
 				return
 			}
 
 		} else {
 			errorObject.Message = "Invalid token"
-			respondWithError(res, http.StatusUnauthorized, errorObject)
+			utils.RespondWithError(res, http.StatusUnauthorized, errorObject)
 			return
 		}
 	})
