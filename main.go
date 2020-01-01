@@ -6,7 +6,7 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/davecgh/go-spew/spew"
+	"github.com/dgrijalva/jwt-go"
 	"github.com/gorilla/mux"
 	"github.com/lib/pq"
 	"golang.org/x/crypto/bcrypt"
@@ -64,7 +64,6 @@ func signup(res http.ResponseWriter, req *http.Request) {
 	var user User
 	var error Error
 	json.NewDecoder(req.Body).Decode(&user)
-	spew.Dump(user)
 
 	if user.Email == "" {
 		error.Message = "Email is missing"
@@ -101,8 +100,75 @@ func signup(res http.ResponseWriter, req *http.Request) {
 	respondWithJSON(res, user)
 }
 
+func GenerateToken(user User) (string, error) {
+	var err error
+	secret := "string"
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"email": user.Email,
+		"iss":   "course",
+	})
+
+	tokenSigned, err := token.SignedString([]byte(secret))
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return tokenSigned, nil
+}
+
 func login(res http.ResponseWriter, req *http.Request) {
-	log.Println("/login  called")
+	var user User
+	var jwt JWT
+	var error Error
+
+	json.NewDecoder(req.Body).Decode(&user)
+
+	if user.Email == "" {
+		error.Message = "Email is missing"
+		respondWithError(res, http.StatusBadRequest, error)
+		return
+	}
+
+	if user.Password == "" {
+		error.Message = "Password is missing"
+		respondWithError(res, http.StatusBadRequest, error)
+		return
+	}
+
+	password := user.Password
+
+	row := db.QueryRow("select * from users where email=$1", user.Email)
+	err := row.Scan(&user.ID, &user.Email, &user.Password)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			error.Message = "User does not exist"
+			respondWithError(res, http.StatusBadRequest, error)
+			return
+		} else {
+			log.Fatal(err)
+		}
+	}
+
+	hashedPassword := user.Password
+	err = bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password))
+	if err != nil {
+		error.Message = "Password is not valid"
+		respondWithError(res, http.StatusBadRequest, error)
+		return
+	}
+
+	token, err := GenerateToken(user)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	res.WriteHeader(http.StatusOK)
+	jwt.Token = token
+	respondWithJSON(res, jwt)
+
 }
 
 // ProtectedEndpoint ...
