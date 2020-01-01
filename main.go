@@ -3,8 +3,10 @@ package main
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gorilla/mux"
@@ -173,11 +175,45 @@ func login(res http.ResponseWriter, req *http.Request) {
 
 // ProtectedEndpoint ...
 func ProtectedEndpoint(res http.ResponseWriter, req *http.Request) {
-	log.Println("/protected  called")
+	res.Write([]byte("/protected endpoint hit"))
 }
 
 // TokenVerifyMiddleware ...
 func TokenVerifyMiddleware(next http.HandlerFunc) http.HandlerFunc {
-	log.Println("token verify middleware called")
-	return next
+	return http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
+		var errorObject Error
+		authHeader := req.Header.Get("Authorization")
+		bearerToken := strings.Split(authHeader, " ")
+
+		if len(bearerToken) == 2 {
+			authToken := bearerToken[1]
+
+			token, err := jwt.Parse(authToken, func(token *jwt.Token) (interface{}, error) {
+				if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+					return nil, fmt.Errorf("There was an error")
+				}
+
+				return []byte("string"), nil
+			})
+
+			if err != nil {
+				errorObject.Message = err.Error()
+				respondWithError(res, http.StatusBadRequest, errorObject)
+				return
+			}
+
+			if token.Valid {
+				next.ServeHTTP(res, req)
+			} else {
+				errorObject.Message = err.Error()
+				respondWithError(res, http.StatusUnauthorized, errorObject)
+				return
+			}
+
+		} else {
+			errorObject.Message = "Invalid token"
+			respondWithError(res, http.StatusUnauthorized, errorObject)
+			return
+		}
+	})
 }
