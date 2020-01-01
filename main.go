@@ -6,11 +6,13 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gorilla/mux"
 	"github.com/lib/pq"
+	"github.com/subosito/gotenv"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -30,15 +32,19 @@ type Error struct {
 
 var db *sql.DB
 
+func init() {
+	gotenv.Load()
+}
+
 func main() {
 	router := mux.NewRouter()
 
-	pgUrl, err := pq.ParseURL("postgres://amuodazc:jsXKFS4Fe4gNvlmOQcYVG6SAHFejmp99@balarama.db.elephantsql.com:5432/amuodazc")
+	pgURL, err := pq.ParseURL(os.Getenv("ELEPHANTSQL_URL"))
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	db, err = sql.Open("postgres", pgUrl)
+	db, err = sql.Open("postgres", pgURL)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -104,7 +110,7 @@ func signup(res http.ResponseWriter, req *http.Request) {
 
 func GenerateToken(user User) (string, error) {
 	var err error
-	secret := "string"
+	secret := os.Getenv("SECRET")
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"email": user.Email,
@@ -180,6 +186,7 @@ func ProtectedEndpoint(res http.ResponseWriter, req *http.Request) {
 
 // TokenVerifyMiddleware ...
 func TokenVerifyMiddleware(next http.HandlerFunc) http.HandlerFunc {
+	secret := os.Getenv("SECRET")
 	return http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
 		var errorObject Error
 		authHeader := req.Header.Get("Authorization")
@@ -193,7 +200,7 @@ func TokenVerifyMiddleware(next http.HandlerFunc) http.HandlerFunc {
 					return nil, fmt.Errorf("There was an error")
 				}
 
-				return []byte("string"), nil
+				return []byte(secret), nil
 			})
 
 			if err != nil {
