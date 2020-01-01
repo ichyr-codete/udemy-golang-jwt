@@ -22,7 +22,7 @@ type JWT struct {
 }
 
 type Error struct {
-	Message string `json:"error"`
+	Message string `json:"message"`
 }
 
 func main() {
@@ -50,14 +50,27 @@ func main() {
 	log.Fatal(err)
 }
 
+func respondWithError(res http.ResponseWriter, status int, error Error) {
+	res.WriteHeader(status)
+	json.NewEncoder(res).Encode(error)
+}
+
 func signup(res http.ResponseWriter, req *http.Request) {
 	var user User
 	var error Error
 	json.NewDecoder(req.Body).Decode(&user)
 	spew.Dump(user)
 
-	if user.Email == "" && user.Password == "" {
-		error.Message = "Email or password are missing"
+	if user.Email == "" {
+		error.Message = "Email is missing"
+		respondWithError(res, http.StatusBadRequest, error)
+		return
+	}
+
+	if user.Password == "" {
+		error.Message = "Password is missing"
+		respondWithError(res, http.StatusBadRequest, error)
+		return
 	}
 }
 
