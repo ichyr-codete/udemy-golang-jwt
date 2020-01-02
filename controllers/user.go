@@ -11,7 +11,9 @@ import (
 
 	"github.com/dgrijalva/jwt-go"
 	"github.com/ichyr-codete/udemy-golang-jwt/models"
+	userRepository "github.com/ichyr-codete/udemy-golang-jwt/repository/user"
 	"github.com/ichyr-codete/udemy-golang-jwt/utils"
+
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -43,8 +45,9 @@ func (c *Controller) Signup(db *sql.DB) http.HandlerFunc {
 
 		user.Password = string(hash)
 
-		insertStatement := "insert into users (email, password) values($1, $2) returning id;"
-		err = db.QueryRow(insertStatement, user.Email, user.Password).Scan(&user.ID)
+		userRepo := userRepository.UserRepository{}
+		user = userRepo.Signup(db, user)
+
 		if err != nil {
 			error.Message = err.Error()
 			utils.RespondWithError(res, http.StatusInternalServerError, error)
@@ -83,8 +86,8 @@ func (c *Controller) Login(db *sql.DB) http.HandlerFunc {
 
 		password := user.Password
 
-		row := db.QueryRow("select * from users where email=$1", user.Email)
-		err := row.Scan(&user.ID, &user.Email, &user.Password)
+		userRepo := userRepository.UserRepository{}
+		user, err := userRepo.Login(db, user)
 
 		if err != nil {
 			if err == sql.ErrNoRows {
